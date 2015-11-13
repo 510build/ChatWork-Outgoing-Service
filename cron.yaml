@@ -1,0 +1,4 @@
+cron:
+- description: read
+  url: /
+  schedule: every 1 minutes
