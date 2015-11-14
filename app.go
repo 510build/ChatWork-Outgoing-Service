@@ -8,10 +8,18 @@ import (
     "encoding/json"
     "regexp"
     chatwork "github.com/eiel/go-chatwork"
+    "appengine/taskqueue"
+    "appengine/memcache"
+    "strconv"
 )
+
+type LastTime struct {
+    Time int64
+}
 
 func init() {
     http.HandleFunc("/", handler)
+    http.HandleFunc("/task", taskHandler)
 }
 
 type Body struct {
@@ -49,16 +57,40 @@ func handler(w http.ResponseWriter, r *http.Request) {
 //        fmt.Fprint(w, err.Error())
 //        return
 //    }
-    //for i,_ := range messages {
-        // message := messages[i]
-        message := messages[len(messages) - 1]
-        body, _ := domain(message, "^画像 (.*)", client, handlerSearchGoogle)
-        if body != nil {
-            cwClient.PostRoomMessage(roomId, *body)
+
+    item := &memcache.Item{
+        Key:   "lastTime",
+        Value: []byte("0"),
+    }
+    memcache.Add(c, item)
+    lastTimeItem, _ := memcache.Get(c, "lastTime")
+    lastTime, _ := strconv.ParseInt(string(lastTimeItem.Value[:]), 10, 64)
+
+    for i,_ := range messages {
+        message := messages[i]
+        if lastTime != 0 && message.SendTime > lastTime {
+            // message := messages[len(messages) - 1]
+            body, _ := domain(message, "^画像 (.*)", client, handlerSearchGoogle)
+            if body != nil {
+                cwClient.PostRoomMessage(roomId, *body)
+            }
         }
-    //}
+    }
+    lastMessage := messages[len(messages) - 1]
+    item.Value = []byte(strconv.FormatInt(lastMessage.SendTime, 10))
+    memcache.Set(c, item)
 }
 
+
+func taskHandler(w http.ResponseWriter, r *http.Request) {
+    max := 12
+    var tasks []*taskqueue.Task
+    for i := 0; i < max; i++ {
+        tasks = append(tasks, taskqueue.NewPOSTTask("/", nil))
+    }
+    c := appengine.NewContext(r)
+    taskqueue.AddMulti(c, tasks, "read")
+}
 
 func handlerSearchGoogle(match []string, message chatwork.Message, client *http.Client) (*string, error) {
     text := match[1]

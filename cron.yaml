@@ -1,4 +1,4 @@
 cron:
 - description: read
-  url: /
+  url: /task
   schedule: every 1 minutes
