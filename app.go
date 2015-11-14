@@ -94,7 +94,8 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 
 func handlerSearchGoogle(match []string, message chatwork.Message, client *http.Client) (*string, error) {
     text := match[1]
-    res, err := SearchGoogle(text, client)
+    n := int(message.SendTime % 10)
+    res, err := SearchGoogle(text, n, client)
     var body Body
     json.NewDecoder(res.Body).Decode(&body)
     imageUrl := body.ResponseData.Results[0].UnescapedUrl
@@ -112,8 +113,8 @@ func domain(message chatwork.Message, regexpString string, client *http.Client, 
     return nil, nil
 }
 
-func SearchGoogle(text string, client *http.Client) (*http.Response, error){
-    url := "http://ajax.googleapis.com/ajax/services/search/images?v=1.0&rsz=1&imgsz=large&imgtype=face&q="+ url.QueryEscape(text) +"&as_filetype=jpg&start=1"
+func SearchGoogle(text string, number int,  client *http.Client) (*http.Response, error){
+    url := "http://ajax.googleapis.com/ajax/services/search/images?v=1.0&rsz=1&imgsz=large&imgtype=face&q="+ url.QueryEscape(text) +"&as_filetype=jpg&start=" + strconv.Itoa(number)
     req, _ := http.NewRequest("GET", url, nil)
     return client.Do(req)
 }
